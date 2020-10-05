@@ -1,0 +1,52 @@
+version: "3.8"
+services:
+  vulnerability-service:
+    container_name: vulnerability-service
+    build: vulnerability-service/
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=production
+      - SPRING.DATASOURCE.URL=jdbc:mysql://vulnerability-db:3306/libraries
+      - SPRING.DATASOURCE.USERNAME=user
+      - SPRING.DATASOURCE.PASSWORD=password
+    healthcheck:
+      test: curl --fail --silent http://localhost:8080/actuator/health 2>&1 || exit 1
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    depends_on:
+      vulnerability-db:
+        condition: service_healthy
+
+  vulnerability-db:
+    container_name: vulnerability-db
+    image: mysql:8.0.21
+    restart: always
+    environment:
+      MYSQL_DATABASE: "libraries"
+      MYSQL_USER: "user"
+      MYSQL_PASSWORD: "password"
+      MYSQL_ROOT_PASSWORD: "password"
+    volumes:
+      - vulnerability-db-vol:/var/lib/mysql
+    healthcheck:
+      test: mysqladmin ping -h localhost
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+  library-ui:
+    container_name: library-ui
+    build:
+      context: library-ui/
+    ports:
+      - "3000:80"
+    depends_on:
+      vulnerability-service:
+        condition: service_healthy
+
+volumes:
+  vulnerability-db-vol:
